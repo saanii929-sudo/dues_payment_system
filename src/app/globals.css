@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  /* Neutrals — deep ink/navy scale, not pure black/gray */
+  --color-background: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef0f3;
+  --color-border: #dde1e7;
+  --color-ink: #0f1720;
+  --color-ink-muted: #4b5563;
+
+  /* Single restrained accent — deep teal, not a purple/blue gradient */
+  --color-accent: #0f6d5c;
+  --color-accent-muted: #e3efec;
+
+  /* Semantic financial states */
+  --color-success: #157a4a;
+  --color-success-muted: #e4f4ec;
+  --color-pending: #a6650b;
+  --color-pending-muted: #fbf1de;
+  --color-danger: #b3261e;
+  --color-danger-muted: #fbe9e8;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@theme inline {
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-muted: var(--color-surface-muted);
+  --color-border: var(--color-border);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-accent: var(--color-accent);
+  --color-accent-muted: var(--color-accent-muted);
+  --color-success: var(--color-success);
+  --color-success-muted: var(--color-success-muted);
+  --color-pending: var(--color-pending);
+  --color-pending-muted: var(--color-pending-muted);
+  --color-danger: var(--color-danger);
+  --color-danger-muted: var(--color-danger-muted);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0b0f14;
+    --color-surface: #121821;
+    --color-surface-muted: #1a222d;
+    --color-border: #2a3441;
+    --color-ink: #e7ebf0;
+    --color-ink-muted: #9aa5b1;
+
+    --color-accent: #2ba48b;
+    --color-accent-muted: #143028;
+
+    --color-success: #35b273;
+    --color-success-muted: #10291d;
+    --color-pending: #d99633;
+    --color-pending-muted: #2e2410;
+    --color-danger: #e2554c;
+    --color-danger-muted: #2e1615;
+  }
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-ink);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
