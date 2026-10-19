@@ -23,7 +23,6 @@ interface PopulatedUser {
   lastLoginAt?: Date;
 }
 
-/** Lists active role assignments in an organization, joined to their user. Org-scoped — see assertCan. */
 export async function listOrganizationUsers(
   actor: SessionUser,
   organizationId: string,

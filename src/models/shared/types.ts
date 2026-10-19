@@ -4,26 +4,20 @@ export type PesewasAmount = number;
 /** Integer basis points, 10000 = 100%. Never a float percentage. */
 export type BasisPoints = number;
 
-export type PaymentStatus = "PENDING" | "SUCCESSFUL" | "FAILED" | "REFUNDED";
+export type PaymentStatus = "PENDING" | "SUCCESSFUL" | "FAILED" | "CANCELLED" | "REFUNDED";
 
 export type WalletType = "FACULTY" | "DEPARTMENT";
 
-export type WalletDirection = "CREDIT" | "DEBIT";
+/** `HOLD` is neither a credit nor a debit of the real balance — see ARCHITECTURE.md Phase 22. */
+export type WalletDirection = "CREDIT" | "DEBIT" | "HOLD";
 
 export type WalletTransactionSourceType =
   | "REVENUE_ALLOCATION"
-  | "WITHDRAWAL_SETTLEMENT"
+  | "WITHDRAWAL_HOLD"
+  | "WITHDRAWAL_RELEASE"
   | "REFUND_REVERSAL"
-  | "ADJUSTMENT";
-
-export type WithdrawalStatus =
-  | "PENDING"
-  | "APPROVED"
-  | "REJECTED"
-  | "SETTLED"
-  | "CANCELLED";
-
-export type WithdrawalDecision = "APPROVED" | "REJECTED";
+  | "ADJUSTMENT"
+  | "CORRECTION";
 
 export type SettlementMethod =
   | "BANK_TRANSFER"
@@ -58,4 +52,14 @@ export interface StudentSnapshot {
   academicLevelName?: string;
   studentCategoryId?: string;
   studentCategoryName?: string;
+  phone?: string;
+  email?: string;
+}
+
+/** Freezes the dues configuration actually charged, at the moment of payment — see ARCHITECTURE.md Phase 9. */
+export interface DuesConfigurationSnapshot {
+  name: string;
+  code: string;
+  amountPesewas: PesewasAmount;
+  effectiveDate: Date;
 }

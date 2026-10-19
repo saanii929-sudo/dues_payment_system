@@ -12,7 +12,6 @@ export interface IFaculty extends Document, AuditFields, DeactivationFields {
   organizationId: Types.ObjectId;
   name: string;
   code: string;
-  /** Convenience pointer only — actual authority comes from UserRole. */
   deanUserId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

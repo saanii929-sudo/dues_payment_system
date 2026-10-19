@@ -15,7 +15,6 @@ export interface AuditLogSummary {
   createdAt: Date;
 }
 
-/** Plain recent-N list, newest first — see ARCHITECTURE.md Phase 4 on why this isn't paginated yet. */
 export async function listRecentAuditLogs(
   actor: SessionUser,
   limit = 200,
@@ -25,7 +24,6 @@ export async function listRecentAuditLogs(
   return queryAuditLogs({}, limit);
 }
 
-/** Same shape, scoped to one organization — Org Admin's recent-activity feed. */
 export async function listOrganizationAuditLogs(
   actor: SessionUser,
   organizationId: string,

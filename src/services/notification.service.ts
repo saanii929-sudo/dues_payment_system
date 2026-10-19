@@ -8,7 +8,6 @@ export interface NotificationSummary {
   type: string;
   channel: string;
   status: string;
-  /** ISO string — plain data crossing the server/client boundary cleanly. */
   createdAt: string;
 }
 

@@ -16,6 +16,14 @@ import {
   Tags,
   CalendarRange,
   Receipt,
+  Copy,
+  Activity,
+  FileBarChart,
+  ScrollText,
+  Banknote,
+  ClipboardCheck,
+  GraduationCap,
+  ListChecks,
 } from "lucide-react";
 import type { NavSection, NavIconKey } from "@/lib/navigation/nav-config";
 import { cn } from "@/utils/cn";
@@ -35,13 +43,16 @@ const ICONS: Record<NavIconKey, typeof LayoutDashboard> = {
   "student-categories": Tags,
   "payment-periods": CalendarRange,
   dues: Receipt,
+  "duplicate-review": Copy,
+  monitoring: Activity,
+  reports: FileBarChart,
+  ledger: ScrollText,
+  withdrawals: Banknote,
+  approvals: ClipboardCheck,
+  students: GraduationCap,
+  matching: ListChecks,
 };
 
-/**
- * The href whose prefix most specifically matches the current path — e.g. on
- * "/admin/users", both "/admin" (Dashboard) and "/admin/users" (Users) are
- * prefix matches, but only the longer, more specific one should highlight.
- */
 function getActiveHref(pathname: string, hrefs: string[]): string | null {
   const matches = hrefs.filter((href) => pathname === href || pathname.startsWith(`${href}/`));
   if (matches.length === 0) return null;
@@ -50,7 +61,6 @@ function getActiveHref(pathname: string, hrefs: string[]): string | null {
   );
 }
 
-/** Shared list rendering — used by both the persistent Sidebar and MobileSidebar drawer. */
 export function NavContent({
   sections,
   onNavigate,

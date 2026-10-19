@@ -30,6 +30,7 @@ export interface OrganizationSummary {
   contactEmail: string;
   contactPhone: string | null;
   address: string | null;
+  logoUrl: string | null;
   isActive: boolean;
   createdAt: Date;
 }
@@ -49,12 +50,6 @@ const DEFAULT_STUDENT_CATEGORIES = [
   { name: "Top-up", code: "TOPUP" },
 ];
 
-/**
- * Also seeds the org's first RevenueAllocationRule from the platform defaults
- * (Phase 4), plus default AcademicLevel and StudentCategory rows (Phase 7) —
- * ordinary, editable/deactivatable/reorderable rows from the moment they
- * exist, not hard-coded values. See ARCHITECTURE.md.
- */
 export async function createOrganization(
   actor: SessionUser,
   input: CreateOrganizationInput,
@@ -78,10 +73,14 @@ export async function createOrganization(
   });
 
   const settings = await getPlatformSettings();
+  const defaultFacultyBps =
+    settings.defaultRevenueSplits.find((split) => split.beneficiaryType === "FACULTY")
+      ?.percentageBps ?? 3000;
   await RevenueAllocationRule.create({
     organizationId: organization._id,
     name: "Default revenue split",
-    splits: settings.defaultRevenueSplits,
+    facultyShareType: "PERCENTAGE",
+    facultyShareBps: defaultFacultyBps,
     priority: 0,
     createdById: actor.userId,
   });
@@ -122,6 +121,31 @@ export async function createOrganization(
     contactEmail: organization.contactEmail,
     contactPhone: organization.contactPhone ?? null,
     address: organization.address ?? null,
+    logoUrl: organization.logoUrl ?? null,
+    isActive: organization.isActive,
+    createdAt: organization.createdAt,
+  };
+}
+
+
+export async function getPublicOrganizationBySlug(
+  slug: string,
+): Promise<OrganizationSummary | null> {
+  await connectToDatabase();
+
+  const organization = await Organization.findOne({ slug, isActive: true });
+  if (!organization) {
+    return null;
+  }
+
+  return {
+    organizationId: organization._id.toString(),
+    name: organization.name,
+    slug: organization.slug,
+    contactEmail: organization.contactEmail,
+    contactPhone: organization.contactPhone ?? null,
+    address: organization.address ?? null,
+    logoUrl: organization.logoUrl ?? null,
     isActive: organization.isActive,
     createdAt: organization.createdAt,
   };
@@ -139,6 +163,7 @@ export async function listOrganizations(actor: SessionUser): Promise<Organizatio
     contactEmail: org.contactEmail,
     contactPhone: org.contactPhone ?? null,
     address: org.address ?? null,
+    logoUrl: org.logoUrl ?? null,
     isActive: org.isActive,
     createdAt: org.createdAt,
   }));
@@ -175,6 +200,7 @@ export async function getOrganizationDetails(
     contactEmail: organization.contactEmail,
     contactPhone: organization.contactPhone ?? null,
     address: organization.address ?? null,
+    logoUrl: organization.logoUrl ?? null,
     isActive: organization.isActive,
     createdAt: organization.createdAt,
     facultyCount,
@@ -227,7 +253,6 @@ export interface UpdateOrganizationProfileInput {
   address?: string;
 }
 
-/** Org Admin (or Super Admin) editing an org's own profile — never the slug, which stays immutable to avoid breaking the public payment URL. */
 export async function updateOrganizationProfile(
   actor: SessionUser,
   organizationId: string,
@@ -266,7 +291,6 @@ export interface OrgAdminSummary {
   assignedAt: Date;
 }
 
-/** Thin wrapper over role-assignment.service.ts, filtered to ORG_ADMIN — see ARCHITECTURE.md Phase 5. */
 export async function listOrgAdmins(
   actor: SessionUser,
   organizationId: string,

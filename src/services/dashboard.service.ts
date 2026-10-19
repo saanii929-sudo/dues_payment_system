@@ -1,5 +1,5 @@
 import "@/lib/serverOnly";
-import type { Model } from "mongoose";
+import { Types, type Model } from "mongoose";
 import { connectToDatabase } from "@/lib/db/connection";
 import {
   Organization,
@@ -7,6 +7,7 @@ import {
   Payment,
   FacultyWallet,
   DepartmentWallet,
+  RevenueAllocation,
   WithdrawalRequest,
   WithdrawalSettlement,
   Faculty,
@@ -18,7 +19,10 @@ import {
   UserRole,
 } from "@/models";
 import { assertCan } from "@/lib/permissions/can";
+import { getAvailableBalance } from "@/services/withdrawal.service";
 import type { SessionUser } from "@/lib/permissions/roles";
+
+export class DashboardError extends Error {}
 
 export interface SuperAdminDashboardMetrics {
   totalOrganizations: number;
@@ -45,6 +49,37 @@ async function sumField(
     { $group: { _id: null, total: { $sum: `$${field}` } } },
   ]);
   return result[0]?.total ?? 0;
+}
+
+async function withdrawalStatusBuckets(
+  walletMatch: Record<string, unknown>,
+): Promise<{
+  pendingWithdrawals: WithdrawalStatusTotal;
+  approvedWithdrawals: WithdrawalStatusTotal;
+  releasedWithdrawals: WithdrawalStatusTotal;
+}> {
+  const pendingMatch = {
+    ...walletMatch,
+    status: { $in: ["PENDING_DEAN_APPROVAL", "RETURNED_FOR_CORRECTION", "PENDING_SUPER_ADMIN_APPROVAL"] },
+  };
+  const approvedMatch = { ...walletMatch, status: "SUPER_ADMIN_APPROVED" };
+  const releasedMatch = { ...walletMatch, status: "RELEASED" };
+
+  const [pendingCount, pendingSum, approvedCount, approvedSum, releasedCount, releasedSum] =
+    await Promise.all([
+      WithdrawalRequest.countDocuments(pendingMatch),
+      sumField(WithdrawalRequest, pendingMatch, "amountPesewas"),
+      WithdrawalRequest.countDocuments(approvedMatch),
+      sumField(WithdrawalRequest, approvedMatch, "amountPesewas"),
+      WithdrawalRequest.countDocuments(releasedMatch),
+      sumField(WithdrawalRequest, releasedMatch, "amountPesewas"),
+    ]);
+
+  return {
+    pendingWithdrawals: { count: pendingCount, amountPesewas: pendingSum },
+    approvedWithdrawals: { count: approvedCount, amountPesewas: approvedSum },
+    releasedWithdrawals: { count: releasedCount, amountPesewas: releasedSum },
+  };
 }
 
 export async function getSuperAdminDashboardMetrics(
@@ -75,7 +110,9 @@ export async function getSuperAdminDashboardMetrics(
     Payment.countDocuments({ status: "FAILED" }),
     sumField(FacultyWallet, {}, "balancePesewas"),
     sumField(DepartmentWallet, {}, "balancePesewas"),
-    WithdrawalRequest.countDocuments({ status: "PENDING" }),
+    WithdrawalRequest.countDocuments({
+      status: { $in: ["PENDING_DEAN_APPROVAL", "RETURNED_FOR_CORRECTION", "PENDING_SUPER_ADMIN_APPROVAL"] },
+    }),
     sumField(WithdrawalSettlement, {}, "amountPesewas"),
   ]);
 
@@ -106,7 +143,6 @@ export interface OrgAdminDashboardMetrics {
   activeUserCount: number;
 }
 
-/** Org-scoped structural counts — Org Admin's dashboard. No financial figures yet since no payment flow exists. */
 export async function getOrgAdminDashboardMetrics(
   actor: SessionUser,
   organizationId: string,
@@ -130,7 +166,7 @@ export async function getOrgAdminDashboardMetrics(
     AcademicLevel.countDocuments({ organizationId }),
     StudentCategory.countDocuments({ organizationId }),
     PaymentPeriod.countDocuments({ organizationId }),
-    PaymentPeriod.findOne({ organizationId, isCurrent: true }),
+    PaymentPeriod.findOne({ organizationId, status: "ACTIVE" }),
     DuesConfiguration.countDocuments({ organizationId }),
     Student.countDocuments({ organizationId }),
     UserRole.countDocuments({ organizationId, isActive: true }),
@@ -154,7 +190,6 @@ export interface VolumeTrendPoint {
   amountPesewas: number;
 }
 
-/** Successful-payment volume bucketed by day, zero-filled for days with no activity. */
 export async function getTransactionVolumeTrend(
   actor: SessionUser,
   days = 14,
@@ -187,3 +222,297 @@ export async function getTransactionVolumeTrend(
 
   return points;
 }
+
+export interface FacultyDashboardFilters {
+  studentCategoryId?: string;
+  academicLevelId?: string;
+  paymentPeriodId?: string;
+  departmentId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface WithdrawalStatusTotal {
+  count: number;
+  amountPesewas: number;
+}
+
+export interface FacultyDashboardFilterOptions {
+  departments: { departmentId: string; name: string }[];
+  academicLevels: { academicLevelId: string; name: string }[];
+  studentCategories: { studentCategoryId: string; name: string }[];
+  paymentPeriods: { paymentPeriodId: string; name: string }[];
+}
+
+export interface FacultyDashboardMetrics {
+  facultyName: string;
+  totalDuesCollectedPesewas: number;
+  successfulPaymentsCount: number;
+  facultyShareEarnedPesewas: number;
+  facultyShareWithdrawnPesewas: number;
+  availableBalancePesewas: number;
+  pendingWithdrawals: WithdrawalStatusTotal;
+  approvedWithdrawals: WithdrawalStatusTotal;
+  releasedWithdrawals: WithdrawalStatusTotal;
+  filterOptions: FacultyDashboardFilterOptions;
+}
+
+function dateRangeFilter(filters: FacultyDashboardFilters): Record<string, Date> | undefined {
+  if (!filters.dateFrom && !filters.dateTo) return undefined;
+  const range: Record<string, Date> = {};
+  if (filters.dateFrom) range.$gte = new Date(filters.dateFrom);
+  if (filters.dateTo) {
+    const end = new Date(filters.dateTo);
+    end.setUTCHours(23, 59, 59, 999);
+    range.$lte = end;
+  }
+  return range;
+}
+
+export async function getFacultyDashboardMetrics(
+  actor: SessionUser,
+  organizationId: string,
+  facultyId: string,
+  filters: FacultyDashboardFilters,
+): Promise<FacultyDashboardMetrics> {
+  assertCan(actor, "faculty-dashboard:view", { organizationId, facultyId });
+  await connectToDatabase();
+
+  const faculty = await Faculty.findOne({ _id: facultyId, organizationId });
+  if (!faculty) {
+    throw new DashboardError("Faculty not found.");
+  }
+
+  const createdAtRange = dateRangeFilter(filters);
+  const orgObjectId = new Types.ObjectId(organizationId);
+  const facultyObjectId = new Types.ObjectId(facultyId);
+
+  const paymentMatch: Record<string, unknown> = {
+    organizationId: orgObjectId,
+    status: "SUCCESSFUL",
+    "studentSnapshot.facultyId": facultyObjectId,
+  };
+  if (filters.departmentId) {
+    paymentMatch["studentSnapshot.departmentId"] = new Types.ObjectId(filters.departmentId);
+  }
+  if (filters.studentCategoryId) {
+    paymentMatch["studentSnapshot.studentCategoryId"] = new Types.ObjectId(filters.studentCategoryId);
+  }
+  if (filters.academicLevelId) {
+    paymentMatch["studentSnapshot.academicLevelId"] = new Types.ObjectId(filters.academicLevelId);
+  }
+  if (filters.paymentPeriodId) paymentMatch.paymentPeriodId = new Types.ObjectId(filters.paymentPeriodId);
+  if (createdAtRange) paymentMatch.createdAt = createdAtRange;
+
+  const allocationMatch: Record<string, unknown> = {
+    organizationId: orgObjectId,
+    facultyId: facultyObjectId,
+    status: { $ne: "ADJUSTED" },
+  };
+  if (filters.departmentId) allocationMatch.departmentId = new Types.ObjectId(filters.departmentId);
+  if (filters.studentCategoryId) {
+    allocationMatch.studentCategoryId = new Types.ObjectId(filters.studentCategoryId);
+  }
+  if (filters.academicLevelId) allocationMatch.academicLevelId = new Types.ObjectId(filters.academicLevelId);
+  if (filters.paymentPeriodId) allocationMatch.paymentPeriodId = new Types.ObjectId(filters.paymentPeriodId);
+  if (createdAtRange) allocationMatch.createdAt = createdAtRange;
+
+  const [
+    successfulPaymentsCount,
+    totalDuesCollectedPesewas,
+    facultyShareEarnedPesewas,
+    wallet,
+    departments,
+    academicLevels,
+    studentCategories,
+    paymentPeriods,
+  ] = await Promise.all([
+    Payment.countDocuments(paymentMatch),
+    sumField(Payment, paymentMatch, "amountPesewas"),
+    sumField(RevenueAllocation, allocationMatch, "facultyShareAmountPesewas"),
+    FacultyWallet.findOne({ organizationId, facultyId }),
+    Department.find({ organizationId, facultyId }).sort({ name: 1 }),
+    AcademicLevel.find({ organizationId }).sort({ sortOrder: 1, name: 1 }),
+    StudentCategory.find({ organizationId }).sort({ sortOrder: 1, name: 1 }),
+    PaymentPeriod.find({ organizationId }).sort({ startDate: -1 }),
+  ]);
+
+  let pendingWithdrawals: WithdrawalStatusTotal = { count: 0, amountPesewas: 0 };
+  let approvedWithdrawals: WithdrawalStatusTotal = { count: 0, amountPesewas: 0 };
+  let releasedWithdrawals: WithdrawalStatusTotal = { count: 0, amountPesewas: 0 };
+  let availableBalancePesewas = 0;
+
+  if (wallet) {
+    const [buckets, available] = await Promise.all([
+      withdrawalStatusBuckets({ walletType: "FACULTY", walletId: wallet._id }),
+      getAvailableBalance(organizationId, { walletType: "FACULTY", facultyId }),
+    ]);
+    pendingWithdrawals = buckets.pendingWithdrawals;
+    approvedWithdrawals = buckets.approvedWithdrawals;
+    releasedWithdrawals = buckets.releasedWithdrawals;
+    availableBalancePesewas = available.availablePesewas;
+  }
+
+  return {
+    facultyName: faculty.name,
+    totalDuesCollectedPesewas,
+    successfulPaymentsCount,
+    facultyShareEarnedPesewas,
+    facultyShareWithdrawnPesewas: releasedWithdrawals.amountPesewas,
+    availableBalancePesewas,
+    pendingWithdrawals,
+    approvedWithdrawals,
+    releasedWithdrawals,
+    filterOptions: {
+      departments: departments.map((d) => ({ departmentId: d._id.toString(), name: d.name })),
+      academicLevels: academicLevels.map((l) => ({ academicLevelId: l._id.toString(), name: l.name })),
+      studentCategories: studentCategories.map((c) => ({
+        studentCategoryId: c._id.toString(),
+        name: c.name,
+      })),
+      paymentPeriods: paymentPeriods.map((p) => ({ paymentPeriodId: p._id.toString(), name: p.name })),
+    },
+  };
+}
+
+export interface DepartmentDashboardFilters {
+  studentCategoryId?: string;
+  academicLevelId?: string;
+  paymentPeriodId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface DepartmentDashboardFilterOptions {
+  academicLevels: { academicLevelId: string; name: string }[];
+  studentCategories: { studentCategoryId: string; name: string }[];
+  paymentPeriods: { paymentPeriodId: string; name: string }[];
+}
+
+export interface DepartmentDashboardMetrics {
+  departmentName: string;
+  totalDuesCollectedPesewas: number;
+  successfulPaymentsCount: number;
+  departmentShareEarnedPesewas: number;
+  departmentShareWithdrawnPesewas: number;
+  availableBalancePesewas: number;
+  pendingWithdrawals: WithdrawalStatusTotal;
+  approvedWithdrawals: WithdrawalStatusTotal;
+  releasedWithdrawals: WithdrawalStatusTotal;
+  filterOptions: DepartmentDashboardFilterOptions;
+}
+
+function departmentDateRangeFilter(
+  filters: DepartmentDashboardFilters,
+): Record<string, Date> | undefined {
+  if (!filters.dateFrom && !filters.dateTo) return undefined;
+  const range: Record<string, Date> = {};
+  if (filters.dateFrom) range.$gte = new Date(filters.dateFrom);
+  if (filters.dateTo) {
+    const end = new Date(filters.dateTo);
+    end.setUTCHours(23, 59, 59, 999);
+    range.$lte = end;
+  }
+  return range;
+}
+
+export async function getDepartmentDashboardMetrics(
+  actor: SessionUser,
+  organizationId: string,
+  departmentId: string,
+  filters: DepartmentDashboardFilters,
+): Promise<DepartmentDashboardMetrics> {
+  assertCan(actor, "department-dashboard:view", { organizationId, departmentId });
+  await connectToDatabase();
+
+  const department = await Department.findOne({ _id: departmentId, organizationId });
+  if (!department) {
+    throw new DashboardError("Department not found.");
+  }
+
+  const createdAtRange = departmentDateRangeFilter(filters);
+
+  const orgObjectId = new Types.ObjectId(organizationId);
+  const departmentObjectId = new Types.ObjectId(departmentId);
+
+  const paymentMatch: Record<string, unknown> = {
+    organizationId: orgObjectId,
+    status: "SUCCESSFUL",
+    "studentSnapshot.departmentId": departmentObjectId,
+  };
+  if (filters.studentCategoryId) {
+    paymentMatch["studentSnapshot.studentCategoryId"] = new Types.ObjectId(filters.studentCategoryId);
+  }
+  if (filters.academicLevelId) {
+    paymentMatch["studentSnapshot.academicLevelId"] = new Types.ObjectId(filters.academicLevelId);
+  }
+  if (filters.paymentPeriodId) paymentMatch.paymentPeriodId = new Types.ObjectId(filters.paymentPeriodId);
+  if (createdAtRange) paymentMatch.createdAt = createdAtRange;
+
+  const allocationMatch: Record<string, unknown> = {
+    organizationId: orgObjectId,
+    departmentId: departmentObjectId,
+    status: { $ne: "ADJUSTED" },
+  };
+  if (filters.studentCategoryId) {
+    allocationMatch.studentCategoryId = new Types.ObjectId(filters.studentCategoryId);
+  }
+  if (filters.academicLevelId) allocationMatch.academicLevelId = new Types.ObjectId(filters.academicLevelId);
+  if (filters.paymentPeriodId) allocationMatch.paymentPeriodId = new Types.ObjectId(filters.paymentPeriodId);
+  if (createdAtRange) allocationMatch.createdAt = createdAtRange;
+
+  const [
+    successfulPaymentsCount,
+    totalDuesCollectedPesewas,
+    departmentShareEarnedPesewas,
+    wallet,
+    academicLevels,
+    studentCategories,
+    paymentPeriods,
+  ] = await Promise.all([
+    Payment.countDocuments(paymentMatch),
+    sumField(Payment, paymentMatch, "amountPesewas"),
+    sumField(RevenueAllocation, allocationMatch, "departmentShareAmountPesewas"),
+    DepartmentWallet.findOne({ organizationId, departmentId }),
+    AcademicLevel.find({ organizationId }).sort({ sortOrder: 1, name: 1 }),
+    StudentCategory.find({ organizationId }).sort({ sortOrder: 1, name: 1 }),
+    PaymentPeriod.find({ organizationId }).sort({ startDate: -1 }),
+  ]);
+
+  let pendingWithdrawals: WithdrawalStatusTotal = { count: 0, amountPesewas: 0 };
+  let approvedWithdrawals: WithdrawalStatusTotal = { count: 0, amountPesewas: 0 };
+  let releasedWithdrawals: WithdrawalStatusTotal = { count: 0, amountPesewas: 0 };
+  let availableBalancePesewas = 0;
+
+  if (wallet) {
+    const [buckets, available] = await Promise.all([
+      withdrawalStatusBuckets({ walletType: "DEPARTMENT", walletId: wallet._id }),
+      getAvailableBalance(organizationId, { walletType: "DEPARTMENT", departmentId }),
+    ]);
+    pendingWithdrawals = buckets.pendingWithdrawals;
+    approvedWithdrawals = buckets.approvedWithdrawals;
+    releasedWithdrawals = buckets.releasedWithdrawals;
+    availableBalancePesewas = available.availablePesewas;
+  }
+
+  return {
+    departmentName: department.name,
+    totalDuesCollectedPesewas,
+    successfulPaymentsCount,
+    departmentShareEarnedPesewas,
+    departmentShareWithdrawnPesewas: releasedWithdrawals.amountPesewas,
+    availableBalancePesewas,
+    pendingWithdrawals,
+    approvedWithdrawals,
+    releasedWithdrawals,
+    filterOptions: {
+      academicLevels: academicLevels.map((l) => ({ academicLevelId: l._id.toString(), name: l.name })),
+      studentCategories: studentCategories.map((c) => ({
+        studentCategoryId: c._id.toString(),
+        name: c.name,
+      })),
+      paymentPeriods: paymentPeriods.map((p) => ({ paymentPeriodId: p._id.toString(), name: p.name })),
+    },
+  };
+}
+

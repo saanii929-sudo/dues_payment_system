@@ -1,7 +1,6 @@
 import { Schema, model, models, type Document, type Types } from "mongoose";
 import type { PesewasAmount, RefundStatus } from "./shared/types";
 
-/** Append-only. A payment can have multiple refund rows (partial refunds). */
 export interface IRefund extends Document {
   organizationId: Types.ObjectId;
   paymentId: Types.ObjectId;

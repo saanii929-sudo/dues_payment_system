@@ -7,7 +7,6 @@ import { NavContent } from "./nav-content";
 import type { NavSection } from "@/lib/navigation/nav-config";
 import { Button } from "@/components/ui/button";
 
-/** Below `lg`, the persistent Sidebar is hidden and this drawer takes over — same NavContent, one nav implementation. */
 export function MobileSidebar({ sections }: { sections: NavSection[] }) {
   const [open, setOpen] = React.useState(false);
 

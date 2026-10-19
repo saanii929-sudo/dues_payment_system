@@ -1,7 +1,6 @@
 import { Schema, model, models, type Document, type Types } from "mongoose";
 import type { PesewasAmount, SettlementMethod } from "./shared/types";
 
-/** Append-only. At most one settlement per approved withdrawal request. */
 export interface IWithdrawalSettlement extends Document {
   withdrawalRequestId: Types.ObjectId;
   settledById: Types.ObjectId;

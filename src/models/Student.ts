@@ -12,16 +12,23 @@ export interface IStudent extends Document, AuditFields, DeactivationFields {
   organizationId: Types.ObjectId;
   indexNumber: string;
   fullName: string;
-  facultyId: Types.ObjectId;
-  departmentId: Types.ObjectId;
-  academicLevelId: Types.ObjectId;
-  studentCategoryId: Types.ObjectId;
+  facultyId?: Types.ObjectId;
+  departmentId?: Types.ObjectId;
+  academicLevelId?: Types.ObjectId;
+  studentCategoryId?: Types.ObjectId;
   phone?: string;
   email?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
+/**
+ * Faculty/Department/AcademicLevel/StudentCategory are optional — the
+ * Student List Upload (Phase 23) explicitly allows a row to omit any of
+ * them, and nothing else in the app reads a `Student` document assuming
+ * they're present (the public payment form is fully self-service and never
+ * looks one up). See ARCHITECTURE.md Phase 23.
+ */
 const studentSchema = new Schema<IStudent>(
   {
     organizationId: {
@@ -31,22 +38,10 @@ const studentSchema = new Schema<IStudent>(
     },
     indexNumber: { type: String, required: true, trim: true },
     fullName: { type: String, required: true, trim: true },
-    facultyId: { type: Schema.Types.ObjectId, ref: "Faculty", required: true },
-    departmentId: {
-      type: Schema.Types.ObjectId,
-      ref: "Department",
-      required: true,
-    },
-    academicLevelId: {
-      type: Schema.Types.ObjectId,
-      ref: "AcademicLevel",
-      required: true,
-    },
-    studentCategoryId: {
-      type: Schema.Types.ObjectId,
-      ref: "StudentCategory",
-      required: true,
-    },
+    facultyId: { type: Schema.Types.ObjectId, ref: "Faculty" },
+    departmentId: { type: Schema.Types.ObjectId, ref: "Department" },
+    academicLevelId: { type: Schema.Types.ObjectId, ref: "AcademicLevel" },
+    studentCategoryId: { type: Schema.Types.ObjectId, ref: "StudentCategory" },
     phone: { type: String, trim: true },
     email: { type: String, lowercase: true, trim: true },
     ...deactivationFieldsSchemaDefinition,

@@ -7,12 +7,9 @@ import {
   deactivationFieldsSchemaDefinition,
   type DeactivationFields,
 } from "./shared/deactivationFields";
-import type { BasisPoints, RevenueBeneficiaryType } from "./shared/types";
+import type { BasisPoints, PesewasAmount } from "./shared/types";
 
-export interface IRevenueSplit {
-  beneficiaryType: RevenueBeneficiaryType;
-  percentageBps: BasisPoints;
-}
+export type FacultyShareType = "FIXED" | "PERCENTAGE";
 
 export interface IRevenueAllocationRule
   extends Document,
@@ -20,25 +17,18 @@ export interface IRevenueAllocationRule
     DeactivationFields {
   organizationId: Types.ObjectId;
   name: string;
-  appliesToFacultyId?: Types.ObjectId;
-  appliesToDepartmentId?: Types.ObjectId;
-  splits: IRevenueSplit[];
+  paymentPeriodId?: Types.ObjectId;
+  facultyId?: Types.ObjectId;
+  departmentId?: Types.ObjectId;
+  academicLevelId?: Types.ObjectId;
+  studentCategoryId?: Types.ObjectId;
+  facultyShareType: FacultyShareType;
+  facultyShareAmountPesewas?: PesewasAmount;
+  facultyShareBps?: BasisPoints;
   priority: number;
   createdAt: Date;
   updatedAt: Date;
 }
-
-const revenueSplitSchema = new Schema<IRevenueSplit>(
-  {
-    beneficiaryType: {
-      type: String,
-      required: true,
-      enum: ["ORGANIZATION", "FACULTY", "DEPARTMENT"],
-    },
-    percentageBps: { type: Number, required: true, min: 0, max: 10000 },
-  },
-  { _id: false },
-);
 
 const revenueAllocationRuleSchema = new Schema<IRevenueAllocationRule>(
   {
@@ -48,17 +38,18 @@ const revenueAllocationRuleSchema = new Schema<IRevenueAllocationRule>(
       required: true,
     },
     name: { type: String, required: true, trim: true },
-    appliesToFacultyId: { type: Schema.Types.ObjectId, ref: "Faculty" },
-    appliesToDepartmentId: { type: Schema.Types.ObjectId, ref: "Department" },
-    splits: {
-      type: [revenueSplitSchema],
+    paymentPeriodId: { type: Schema.Types.ObjectId, ref: "PaymentPeriod" },
+    facultyId: { type: Schema.Types.ObjectId, ref: "Faculty" },
+    departmentId: { type: Schema.Types.ObjectId, ref: "Department" },
+    academicLevelId: { type: Schema.Types.ObjectId, ref: "AcademicLevel" },
+    studentCategoryId: { type: Schema.Types.ObjectId, ref: "StudentCategory" },
+    facultyShareType: {
+      type: String,
       required: true,
-      validate: {
-        validator: (splits: IRevenueSplit[]) =>
-          splits.reduce((sum, split) => sum + split.percentageBps, 0) === 10000,
-        message: "Revenue split percentages must sum to 10000 basis points (100%).",
-      },
+      enum: ["FIXED", "PERCENTAGE"],
     },
+    facultyShareAmountPesewas: { type: Number, min: 0 },
+    facultyShareBps: { type: Number, min: 0, max: 10000 },
     priority: { type: Number, required: true, default: 0 },
     ...deactivationFieldsSchemaDefinition,
     ...auditFieldsSchemaDefinition,

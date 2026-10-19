@@ -20,6 +20,7 @@ export interface PlatformSettingsDTO {
   defaultCurrency: string;
   cardPaymentsEnabled: boolean;
   mobileMoneyEnabled: boolean;
+  allowWithdrawalSelfApproval: boolean;
   defaultRevenueSplits: IPlatformRevenueSplit[];
 }
 
@@ -31,6 +32,7 @@ function toDTO(doc: IPlatformSettings): PlatformSettingsDTO {
     defaultCurrency: doc.defaultCurrency,
     cardPaymentsEnabled: doc.cardPaymentsEnabled,
     mobileMoneyEnabled: doc.mobileMoneyEnabled,
+    allowWithdrawalSelfApproval: doc.allowWithdrawalSelfApproval,
     defaultRevenueSplits: doc.defaultRevenueSplits.map((split) => ({
       beneficiaryType: split.beneficiaryType,
       percentageBps: split.percentageBps,
@@ -38,7 +40,6 @@ function toDTO(doc: IPlatformSettings): PlatformSettingsDTO {
   };
 }
 
-/** Upserts the singleton on first read so the rest of the app never has to special-case "no settings yet". */
 export async function getPlatformSettings(): Promise<PlatformSettingsDTO> {
   await connectToDatabase();
   const doc = await PlatformSettings.findByIdAndUpdate(

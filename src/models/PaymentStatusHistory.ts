@@ -15,12 +15,12 @@ const paymentStatusHistorySchema = new Schema<IPaymentStatusHistory>(
     paymentId: { type: Schema.Types.ObjectId, ref: "Payment", required: true },
     fromStatus: {
       type: String,
-      enum: ["PENDING", "SUCCESSFUL", "FAILED", "REFUNDED"],
+      enum: ["PENDING", "SUCCESSFUL", "FAILED", "CANCELLED", "REFUNDED"],
     },
     toStatus: {
       type: String,
       required: true,
-      enum: ["PENDING", "SUCCESSFUL", "FAILED", "REFUNDED"],
+      enum: ["PENDING", "SUCCESSFUL", "FAILED", "CANCELLED", "REFUNDED"],
     },
     changedById: { type: Schema.Types.ObjectId, ref: "User" },
     reason: { type: String },

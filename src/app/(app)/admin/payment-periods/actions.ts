@@ -3,20 +3,23 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { verifySession } from "@/lib/auth/dal";
-import {
-  createPaymentPeriod,
-  deactivatePaymentPeriod,
-  reactivatePaymentPeriod,
-  setCurrentPaymentPeriod,
-  PaymentPeriodError,
-} from "@/services/payment-period.service";
+import { createPaymentPeriod, PaymentPeriodError } from "@/services/payment-period.service";
 
-const CreatePaymentPeriodSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  code: z.string().min(1, { message: "Code is required." }),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date(),
-});
+const PaymentPeriodInputSchema = z
+  .object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    code: z.string().min(1, { message: "Code is required." }),
+    academicYear: z.string().min(1, { message: "Academic year is required." }),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    paymentOpenDate: z.coerce.date(),
+    paymentCloseDate: z.coerce.date(),
+    description: z.string().optional(),
+  })
+  .transform((value) => ({
+    ...value,
+    description: value.description?.trim() ? value.description.trim() : undefined,
+  }));
 
 export interface CreatePaymentPeriodFormState {
   error?: string;
@@ -32,11 +35,15 @@ export async function createPaymentPeriodAction(
     return { error: "No organization in scope." };
   }
 
-  const parsed = CreatePaymentPeriodSchema.safeParse({
+  const parsed = PaymentPeriodInputSchema.safeParse({
     name: formData.get("name"),
     code: formData.get("code"),
+    academicYear: formData.get("academicYear"),
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
+    paymentOpenDate: formData.get("paymentOpenDate"),
+    paymentCloseDate: formData.get("paymentCloseDate"),
+    description: formData.get("description"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
@@ -53,25 +60,4 @@ export async function createPaymentPeriodAction(
 
   revalidatePath("/admin/payment-periods");
   return { success: true };
-}
-
-export async function deactivatePaymentPeriodAction(paymentPeriodId: string) {
-  const session = await verifySession();
-  if (!session.organizationId) throw new Error("No organization in scope.");
-  await deactivatePaymentPeriod(session, session.organizationId, paymentPeriodId);
-  revalidatePath("/admin/payment-periods");
-}
-
-export async function reactivatePaymentPeriodAction(paymentPeriodId: string) {
-  const session = await verifySession();
-  if (!session.organizationId) throw new Error("No organization in scope.");
-  await reactivatePaymentPeriod(session, session.organizationId, paymentPeriodId);
-  revalidatePath("/admin/payment-periods");
-}
-
-export async function setCurrentPaymentPeriodAction(paymentPeriodId: string) {
-  const session = await verifySession();
-  if (!session.organizationId) throw new Error("No organization in scope.");
-  await setCurrentPaymentPeriod(session, session.organizationId, paymentPeriodId);
-  revalidatePath("/admin/payment-periods");
 }

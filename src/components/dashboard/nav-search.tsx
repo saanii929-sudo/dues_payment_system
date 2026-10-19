@@ -8,11 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { NavItem } from "@/lib/navigation/nav-config";
 
-/**
- * Real client-side search over the navigable items this user actually has —
- * not a dead input. Extending it to search real records (students,
- * payments) is a later-phase addition once those exist.
- */
 export function NavSearch({ items }: { items: NavItem[] }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");

@@ -3,12 +3,6 @@ import { Organization } from "@/models";
 import { ROLES } from "@/lib/permissions/roles";
 import type { SessionUser } from "@/lib/permissions/roles";
 
-/**
- * Shows the current organization's real name as a static label, not a
- * dropdown with nothing to select — no user in this schema belongs to more
- * than one organization. Becomes a real switcher once Phase 4 ships org
- * management for Super Admin. See ARCHITECTURE.md "Org switcher is honest".
- */
 export async function OrgIdentity({ user }: { user: SessionUser }) {
   if (user.role === ROLES.SUPER_ADMIN || !user.organizationId) {
     return (

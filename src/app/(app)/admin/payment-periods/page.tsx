@@ -18,7 +18,8 @@ export default async function PaymentPeriodsPage() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold text-ink">Payment periods</h1>
         <p className="text-sm text-ink-muted">
-          Manage academic terms and mark one as the current period.
+          Manage academic terms and move each through Draft, Scheduled, Active, Closed, and
+          Archived.
         </p>
       </div>
 

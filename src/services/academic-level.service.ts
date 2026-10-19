@@ -24,7 +24,6 @@ export interface CreateAcademicLevelInput {
   sortOrder: number;
 }
 
-/** Case-insensitive, excludes `excludeAcademicLevelId` when checking during an edit. */
 async function assertUniqueAcademicLevelName(
   organizationId: string,
   name: string,
@@ -139,12 +138,27 @@ export async function listAcademicLevels(
   }));
 }
 
-/**
- * Swaps the level with its adjacent row in display order, then renumbers the
- * whole list sequentially (0..n-1) — a plain swap of raw `sortOrder` values
- * would be a no-op whenever two rows already share a value (e.g. rows created
- * before this field was consistently set).
- */
+export interface PublicAcademicLevelOption {
+  academicLevelId: string;
+  name: string;
+}
+
+
+export async function listPublicAcademicLevels(
+  organizationId: string,
+): Promise<PublicAcademicLevelOption[]> {
+  await connectToDatabase();
+  const levels = await AcademicLevel.find({ organizationId, isActive: true }).sort({
+    sortOrder: 1,
+    name: 1,
+  });
+  return levels.map((level) => ({
+    academicLevelId: level._id.toString(),
+    name: level.name,
+  }));
+}
+
+
 export async function moveAcademicLevel(
   actor: SessionUser,
   organizationId: string,

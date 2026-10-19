@@ -33,6 +33,16 @@ export function GeneralSettingsForm({ settings }: { settings: PlatformSettingsDT
           required
         />
       </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="allowWithdrawalSelfApproval"
+          name="allowWithdrawalSelfApproval"
+          defaultChecked={settings.allowWithdrawalSelfApproval}
+          className="h-4 w-4 rounded border-border"
+        />
+        <Label htmlFor="allowWithdrawalSelfApproval">Allow approving your own withdrawal requests</Label>
+      </div>
       {state?.error && (
         <p className="rounded-md bg-danger-muted px-3 py-2 text-sm text-danger">{state.error}</p>
       )}

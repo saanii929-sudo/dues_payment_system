@@ -3,17 +3,16 @@ import { verifySession } from "@/lib/auth/dal";
 import { ROLES } from "@/lib/permissions/roles";
 import { getDepartmentDetails } from "@/services/department.service";
 import { listFaculties } from "@/services/faculty.service";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
+  listDepartmentExecutives,
+  listDepartmentExecutiveHistory,
+} from "@/services/department-executive.service";
+import { Badge } from "@/components/ui/badge";
 import { EditDepartmentForm } from "./edit-department-form";
 import { DepartmentActions } from "./department-actions";
+import { ExecutivesTable } from "./executives-table";
+import { CreateExecutiveDialog } from "./create-executive-dialog";
+import { ExecutiveHistoryTable } from "./executive-history-table";
 
 export default async function DepartmentDetailsPage({
   params,
@@ -24,10 +23,15 @@ export default async function DepartmentDetailsPage({
     redirect("/login");
   }
 
-  const [department, faculties] = await Promise.all([
-    getDepartmentDetails(session, session.organizationId, departmentId),
-    listFaculties(session, session.organizationId),
+  const organizationId = session.organizationId;
+  const [department, faculties, executives, executiveHistory] = await Promise.all([
+    getDepartmentDetails(session, organizationId, departmentId),
+    listFaculties(session, organizationId),
+    listDepartmentExecutives(session, organizationId, departmentId),
+    listDepartmentExecutiveHistory(session, organizationId, departmentId),
   ]);
+
+  const hod = executives.find((executive) => executive.role === ROLES.DEPT_HOD) ?? null;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -53,39 +57,30 @@ export default async function DepartmentDetailsPage({
             Head of Department
           </p>
           <p className="mt-1.5 text-lg font-semibold text-ink">
-            {department.hod ? department.hod.fullName : "Not assigned"}
+            {hod ? hod.fullName : "Not assigned"}
           </p>
-          {department.hod && (
-            <p className="text-xs text-ink-muted">{department.hod.email}</p>
-          )}
+          {hod && <p className="text-xs text-ink-muted">{hod.email}</p>}
         </div>
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">Executives</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink">Officials</h2>
+          <CreateExecutiveDialog departmentId={department.departmentId} />
+        </div>
+        <p className="mt-1 text-xs text-ink-muted">
+          The HOD is the sole approval authority for this department&apos;s withdrawal requests —
+          at most one active HOD is allowed at a time.
+        </p>
         <div className="mt-3">
-          {department.executives.length === 0 ? (
-            <p className="text-sm text-ink-muted">No executives assigned yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {department.executives.map((executive) => (
-                  <TableRow key={executive.userRoleId}>
-                    <TableCell className="text-ink-muted">{executive.role}</TableCell>
-                    <TableCell className="font-medium text-ink">{executive.fullName}</TableCell>
-                    <TableCell className="text-ink-muted">{executive.email}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <ExecutivesTable departmentId={department.departmentId} executives={executives} />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface p-4">
+        <h2 className="text-sm font-semibold text-ink">Appointment history</h2>
+        <div className="mt-3">
+          <ExecutiveHistoryTable history={executiveHistory} />
         </div>
       </div>
 

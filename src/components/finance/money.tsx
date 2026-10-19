@@ -7,7 +7,6 @@ interface MoneyProps {
   className?: string;
 }
 
-/** Not yet exercised by real financial data — ready for the payment/wallet phases. */
 export function Money({ amountPesewas, currency = "GHS", className }: MoneyProps) {
   const isNegative = amountPesewas < 0;
   return (

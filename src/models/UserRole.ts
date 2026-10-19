@@ -4,7 +4,6 @@ import { ROLES, type Role as RoleKey } from "@/lib/permissions/roles";
 export interface IUserRole extends Document {
   userId: Types.ObjectId;
   roleId: Types.ObjectId;
-  /** Denormalized snapshot of Role.key for fast queries without populate. */
   roleKey: RoleKey;
   organizationId?: Types.ObjectId;
   facultyId?: Types.ObjectId;
@@ -42,6 +41,14 @@ userRoleSchema.index(
 userRoleSchema.index({ organizationId: 1, roleKey: 1 });
 userRoleSchema.index({ facultyId: 1 });
 userRoleSchema.index({ departmentId: 1 });
+userRoleSchema.index(
+  { organizationId: 1, facultyId: 1 },
+  { unique: true, partialFilterExpression: { isActive: true, roleKey: "FACULTY_DEAN" } },
+);
+userRoleSchema.index(
+  { organizationId: 1, departmentId: 1 },
+  { unique: true, partialFilterExpression: { isActive: true, roleKey: "DEPT_HOD" } },
+);
 
 export const UserRole =
   models.UserRole ?? model<IUserRole>("UserRole", userRoleSchema);

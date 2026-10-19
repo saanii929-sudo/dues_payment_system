@@ -2,17 +2,16 @@ import { redirect } from "next/navigation";
 import { verifySession } from "@/lib/auth/dal";
 import { ROLES } from "@/lib/permissions/roles";
 import { getFacultyDetails } from "@/services/faculty.service";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
+  listFacultyExecutives,
+  listFacultyExecutiveHistory,
+} from "@/services/faculty-executive.service";
+import { Badge } from "@/components/ui/badge";
 import { EditFacultyForm } from "./edit-faculty-form";
 import { FacultyActions } from "./faculty-actions";
+import { ExecutivesTable } from "./executives-table";
+import { CreateExecutiveDialog } from "./create-executive-dialog";
+import { ExecutiveHistoryTable } from "./executive-history-table";
 
 export default async function FacultyDetailsPage({
   params,
@@ -23,7 +22,12 @@ export default async function FacultyDetailsPage({
     redirect("/login");
   }
 
-  const faculty = await getFacultyDetails(session, session.organizationId, facultyId);
+  const organizationId = session.organizationId;
+  const [faculty, executives, executiveHistory] = await Promise.all([
+    getFacultyDetails(session, organizationId, facultyId),
+    listFacultyExecutives(session, organizationId, facultyId),
+    listFacultyExecutiveHistory(session, organizationId, facultyId),
+  ]);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -51,30 +55,23 @@ export default async function FacultyDetailsPage({
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">Executives</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink">Executives</h2>
+          <CreateExecutiveDialog facultyId={faculty.facultyId} />
+        </div>
+        <p className="mt-1 text-xs text-ink-muted">
+          The Dean is the sole approval authority for this faculty&apos;s withdrawal requests — at
+          most one active Dean is allowed at a time.
+        </p>
         <div className="mt-3">
-          {faculty.executives.length === 0 ? (
-            <p className="text-sm text-ink-muted">No executives assigned yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {faculty.executives.map((executive) => (
-                  <TableRow key={executive.userRoleId}>
-                    <TableCell className="text-ink-muted">{executive.role}</TableCell>
-                    <TableCell className="font-medium text-ink">{executive.fullName}</TableCell>
-                    <TableCell className="text-ink-muted">{executive.email}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <ExecutivesTable facultyId={faculty.facultyId} executives={executives} />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface p-4">
+        <h2 className="text-sm font-semibold text-ink">Executive history</h2>
+        <div className="mt-3">
+          <ExecutiveHistoryTable history={executiveHistory} />
         </div>
       </div>
 

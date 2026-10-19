@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Button } from "./button";
+import { Button, type ButtonProps } from "./button";
 import { cn } from "@/utils/cn";
 
 export interface EditDialogProps {
@@ -10,23 +10,21 @@ export interface EditDialogProps {
   title: string;
   description?: string;
   submitLabel?: string;
+  submitVariant?: ButtonProps["variant"];
   cancelLabel?: string;
+  size?: "sm" | "lg";
   onSubmit: (formData: FormData) => Promise<void>;
   children: React.ReactNode;
 }
 
-/**
- * Reusable edit-form shell — the edit counterpart to `ConfirmDialog`. Fields
- * are passed as children (plain inputs with `name` attributes); on submit the
- * whole form is handed to `onSubmit` as FormData, and any thrown error is
- * shown inline instead of silently closing the dialog.
- */
 export function EditDialog({
   trigger,
   title,
   description,
   submitLabel = "Save changes",
+  submitVariant = "primary",
   cancelLabel = "Cancel",
+  size = "sm",
   onSubmit,
   children,
 }: EditDialogProps) {
@@ -62,7 +60,8 @@ export function EditDialog({
         <Dialog.Overlay className="fixed inset-0 bg-ink/40" />
         <Dialog.Content
           className={cn(
-            "fixed left-1/2 top-1/2 w-full max-w-sm -translate-x-1/2 -translate-y-1/2",
+            "fixed left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2",
+            size === "lg" ? "max-w-lg" : "max-w-sm",
             "rounded-lg border border-border bg-surface p-5 shadow-lg",
           )}
         >
@@ -85,7 +84,7 @@ export function EditDialog({
                   {cancelLabel}
                 </Button>
               </Dialog.Close>
-              <Button type="submit" size="sm" disabled={pending}>
+              <Button type="submit" variant={submitVariant} size="sm" disabled={pending}>
                 {pending ? "Saving…" : submitLabel}
               </Button>
             </div>

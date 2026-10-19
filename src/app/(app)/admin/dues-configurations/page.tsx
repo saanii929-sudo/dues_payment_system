@@ -7,8 +7,7 @@ import { listFaculties } from "@/services/faculty.service";
 import { listDepartments } from "@/services/department.service";
 import { listAcademicLevels } from "@/services/academic-level.service";
 import { listStudentCategories } from "@/services/student-category.service";
-import { DuesConfigurationsTable } from "./dues-configurations-table";
-import { DuesConfigurationForm } from "./dues-configuration-form";
+import { DuesConfigurationsToolbar } from "./dues-configurations-toolbar";
 
 export default async function DuesConfigurationsPage() {
   const session = await verifySession();
@@ -32,25 +31,20 @@ export default async function DuesConfigurationsPage() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold text-ink">Dues configuration</h1>
         <p className="text-sm text-ink-muted">
-          Define what students owe, and for which period and scope.
+          Define what students owe, for which scope and period, and let the system apply the
+          correct amount automatically.
         </p>
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-4">
-        <DuesConfigurationsTable configurations={configurations} />
-      </div>
-
-      <div className="rounded-lg border border-border bg-surface p-4">
-        <h2 className="text-sm font-semibold text-ink">Add a dues configuration</h2>
-        <div className="mt-4">
-          <DuesConfigurationForm
-            paymentPeriods={paymentPeriods.filter((period) => period.isActive)}
-            faculties={faculties.filter((faculty) => faculty.isActive)}
-            departments={departments.filter((department) => department.isActive)}
-            academicLevels={academicLevels.filter((level) => level.isActive)}
-            studentCategories={studentCategories.filter((category) => category.isActive)}
-          />
-        </div>
+        <DuesConfigurationsToolbar
+          configurations={configurations}
+          paymentPeriods={paymentPeriods.filter((period) => period.status !== "ARCHIVED")}
+          faculties={faculties.filter((faculty) => faculty.isActive)}
+          departments={departments.filter((department) => department.isActive)}
+          academicLevels={academicLevels.filter((level) => level.isActive)}
+          studentCategories={studentCategories.filter((category) => category.isActive)}
+        />
       </div>
     </div>
   );

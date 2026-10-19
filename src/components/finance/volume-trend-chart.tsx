@@ -14,12 +14,6 @@ const VIEW_HEIGHT = 100;
 const BAR_GAP = 3;
 const BASELINE_Y = VIEW_HEIGHT - 1;
 
-/**
- * Hand-rolled single-series bar chart — thin bars, a recessive baseline, and
- * a per-bar hover tooltip, per the dataviz skill's mark spec. Single series,
- * so the heading names it instead of a legend box. A visually-hidden table
- * carries the same data for screen readers.
- */
 export function VolumeTrendChart({ points }: { points: VolumeTrendPoint[] }) {
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
   const max = Math.max(1, ...points.map((point) => point.amountPesewas));

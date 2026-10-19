@@ -8,9 +8,16 @@ export type Capability =
   | "faculty:manage"
   | "department:manage"
   | "dues:configure"
+  | "revenue:configure"
   | "payment:record"
+  | "payment:refund"
+  | "payment:view"
+  | "ledger:adjust"
+  | "faculty-dashboard:view"
+  | "department-dashboard:view"
   | "withdrawal:request"
   | "withdrawal:approve"
+  | "withdrawal:super-approve"
   | "funds:release"
   | "student-list:upload"
   | "report:view"
@@ -21,11 +28,6 @@ type CapabilityRule = (user: SessionUser, resource?: SessionScope) => boolean;
 
 const RULES: Record<Capability, CapabilityRule> = {
   "organization:manage": (user) => isSuperAdmin(user),
-  // Org Admin's authority over their OWN org's structure/profile — kept
-  // distinct from organization:manage, which gates Super-Admin-only actions
-  // (deactivating an org, assigning/revoking its Org Admin). Broadening
-  // organization:manage instead would let an Org Admin deactivate their own
-  // organization or revoke a peer Org Admin. See ARCHITECTURE.md Phase 5.
   "organization:administer": (user, resource) =>
     isSuperAdmin(user) ||
     (user.role === ROLES.ORG_ADMIN && inOrganization(user, resource?.organizationId ?? "")),
@@ -38,29 +40,61 @@ const RULES: Record<Capability, CapabilityRule> = {
     resource
       ? user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "")
       : false,
+  "revenue:configure": (user, resource) =>
+    resource
+      ? user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "")
+      : false,
   "payment:record": () => true, // student-initiated; verified server-side in the payment webhook, not by role
+  "payment:refund": (user, resource) =>
+    resource
+      ? user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "")
+      : false,
+  "payment:view": (user, resource) =>
+    resource
+      ? user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "")
+      : false,
+  "ledger:adjust": (user, resource) =>
+    resource
+      ? user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "")
+      : false,
+  "faculty-dashboard:view": (user, resource) =>
+    resource
+      ? isSuperAdmin(user) ||
+        (user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "")) ||
+        ((user.role === ROLES.FACULTY_DEAN ||
+          user.role === ROLES.FACULTY_PRESIDENT ||
+          user.role === ROLES.FACULTY_TREASURER) &&
+          inFaculty(user, resource))
+      : false,
+  "department-dashboard:view": (user, resource) =>
+    resource
+      ? isSuperAdmin(user) ||
+        (user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "")) ||
+        ((user.role === ROLES.DEPT_HOD ||
+          user.role === ROLES.DEPT_PRESIDENT ||
+          user.role === ROLES.DEPT_TREASURER) &&
+          inDepartment(user, resource))
+      : false,
   "withdrawal:request": (user, resource) =>
     resource
-      ? (user.role === ROLES.FACULTY_TREASURER && inFaculty(user, resource)) ||
-        (user.role === ROLES.DEPT_TREASURER && inDepartment(user, resource))
+      ? ((user.role === ROLES.FACULTY_TREASURER || user.role === ROLES.FACULTY_PRESIDENT) &&
+          inFaculty(user, resource)) ||
+        ((user.role === ROLES.DEPT_TREASURER || user.role === ROLES.DEPT_PRESIDENT) &&
+          inDepartment(user, resource))
       : false,
   "withdrawal:approve": (user, resource) =>
     resource
       ? (user.role === ROLES.FACULTY_DEAN && inFaculty(user, resource)) ||
         (user.role === ROLES.DEPT_HOD && inDepartment(user, resource))
       : false,
-  "funds:release": (user, resource) =>
-    resource ? user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "") : false,
+  "withdrawal:super-approve": (user) => isSuperAdmin(user),
+  "funds:release": (user) => isSuperAdmin(user),
   "student-list:upload": (user, resource) =>
     resource ? user.role === ROLES.ORG_ADMIN && inOrganization(user, resource.organizationId ?? "") : false,
   "report:view": (user, resource) => (resource ? inDepartment(user, resource) : false),
   "user:manage": (user, resource) =>
     isSuperAdmin(user) ||
     (user.role === ROLES.ORG_ADMIN && inOrganization(user, resource?.organizationId ?? "")),
-  // Genuinely platform-wide actions (platform users, audit logs, platform
-  // settings) — same check as organization:manage today, kept distinct so
-  // call sites stay self-documenting if a narrower platform-support role
-  // is ever introduced.
   "platform:manage": (user) => isSuperAdmin(user),
 };
 
@@ -79,13 +113,6 @@ export class ForbiddenError extends Error {
   }
 }
 
-/**
- * Throws ForbiddenError when the capability check fails. Call this at the
- * top of every Server Action / service function that mutates or reads
- * scoped data — a page or route being "protected" upstream is never
- * sufficient on its own, per the Next.js data-security guidance referenced
- * in ARCHITECTURE.md.
- */
 export function assertCan(
   user: SessionUser,
   capability: Capability,

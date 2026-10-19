@@ -3,21 +3,20 @@ import {
   auditFieldsSchemaDefinition,
   type AuditFields,
 } from "./shared/auditFields";
-import {
-  deactivationFieldsSchemaDefinition,
-  type DeactivationFields,
-} from "./shared/deactivationFields";
 
-export interface IPaymentPeriod
-  extends Document,
-    AuditFields,
-    DeactivationFields {
+export type PaymentPeriodStatus = "DRAFT" | "SCHEDULED" | "ACTIVE" | "CLOSED" | "ARCHIVED";
+
+export interface IPaymentPeriod extends Document, AuditFields {
   organizationId: Types.ObjectId;
   name: string;
   code: string;
+  academicYear: string;
   startDate: Date;
   endDate: Date;
-  isCurrent: boolean;
+  paymentOpenDate: Date;
+  paymentCloseDate: Date;
+  status: PaymentPeriodStatus;
+  description?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,10 +30,18 @@ const paymentPeriodSchema = new Schema<IPaymentPeriod>(
     },
     name: { type: String, required: true, trim: true },
     code: { type: String, required: true, uppercase: true, trim: true },
+    academicYear: { type: String, required: true, trim: true },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
-    isCurrent: { type: Boolean, default: false },
-    ...deactivationFieldsSchemaDefinition,
+    paymentOpenDate: { type: Date, required: true },
+    paymentCloseDate: { type: Date, required: true },
+    status: {
+      type: String,
+      required: true,
+      enum: ["DRAFT", "SCHEDULED", "ACTIVE", "CLOSED", "ARCHIVED"],
+      default: "DRAFT",
+    },
+    description: { type: String, trim: true },
     ...auditFieldsSchemaDefinition,
   },
   { timestamps: true },
@@ -43,7 +50,7 @@ const paymentPeriodSchema = new Schema<IPaymentPeriod>(
 paymentPeriodSchema.index({ organizationId: 1, code: 1 }, { unique: true });
 paymentPeriodSchema.index(
   { organizationId: 1 },
-  { unique: true, partialFilterExpression: { isCurrent: true } },
+  { unique: true, partialFilterExpression: { status: "ACTIVE" } },
 );
 
 export const PaymentPeriod =

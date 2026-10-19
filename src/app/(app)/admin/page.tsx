@@ -42,7 +42,7 @@ export default async function AdminPage() {
         <StatTile
           label="Payment periods"
           value={String(metrics.paymentPeriodCount)}
-          hint={metrics.currentPaymentPeriodName ?? "No current period set"}
+          hint={metrics.currentPaymentPeriodName ?? "No active period set"}
         />
         <StatTile label="Dues configurations" value={String(metrics.duesConfigurationCount)} />
         <StatTile label="Students" value={String(metrics.studentCount)} />

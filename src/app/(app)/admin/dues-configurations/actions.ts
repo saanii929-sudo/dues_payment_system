@@ -5,93 +5,97 @@ import { revalidatePath } from "next/cache";
 import { verifySession } from "@/lib/auth/dal";
 import {
   createDuesConfiguration,
-  deactivateDuesConfiguration,
-  reactivateDuesConfiguration,
+  updateDuesConfiguration,
+  transitionDuesConfigurationStatus,
   DuesConfigurationError,
 } from "@/services/dues-configuration.service";
+import type { DuesConfigurationStatus } from "@/services/dues-configuration.service";
 import { parseGhsToPesewas } from "@/lib/format/currency";
 
-const CreateDuesConfigurationSchema = z.object({
+const DuesConfigurationInputSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   code: z.string().min(1, { message: "Code is required." }),
   paymentPeriodId: z.string().min(1, { message: "Select a payment period." }),
   amount: z.string().min(1, { message: "Enter an amount." }),
+  effectiveDate: z.coerce.date(),
   facultyId: z.string().optional(),
   departmentId: z.string().optional(),
   academicLevelId: z.string().optional(),
   studentCategoryId: z.string().optional(),
-  isMandatory: z.coerce.boolean(),
+  isMandatory: z.boolean(),
 });
 
-export interface CreateDuesConfigurationFormState {
-  error?: string;
-  success?: boolean;
+/** What the client actually sends — a date `<input>`'s value is a string, coerced to a Date server-side. */
+export interface DuesConfigurationFormInput {
+  name: string;
+  code: string;
+  paymentPeriodId: string;
+  amount: string;
+  effectiveDate: string;
+  facultyId?: string;
+  departmentId?: string;
+  academicLevelId?: string;
+  studentCategoryId?: string;
+  isMandatory: boolean;
+}
+
+function parseInput(raw: DuesConfigurationFormInput) {
+  const parsed = DuesConfigurationInputSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new DuesConfigurationError(parsed.error.issues[0]?.message ?? "Invalid input.");
+  }
+
+  const amountPesewas = parseGhsToPesewas(parsed.data.amount);
+
+  return {
+    name: parsed.data.name,
+    code: parsed.data.code,
+    paymentPeriodId: parsed.data.paymentPeriodId,
+    amountPesewas,
+    effectiveDate: parsed.data.effectiveDate,
+    facultyId: parsed.data.facultyId || undefined,
+    departmentId: parsed.data.departmentId || undefined,
+    academicLevelId: parsed.data.academicLevelId || undefined,
+    studentCategoryId: parsed.data.studentCategoryId || undefined,
+    isMandatory: parsed.data.isMandatory,
+  };
 }
 
 export async function createDuesConfigurationAction(
-  _prevState: CreateDuesConfigurationFormState | undefined,
-  formData: FormData,
-): Promise<CreateDuesConfigurationFormState> {
-  const session = await verifySession();
-  if (!session.organizationId) {
-    return { error: "No organization in scope." };
-  }
-
-  const parsed = CreateDuesConfigurationSchema.safeParse({
-    name: formData.get("name"),
-    code: formData.get("code"),
-    paymentPeriodId: formData.get("paymentPeriodId"),
-    amount: formData.get("amount"),
-    facultyId: formData.get("facultyId") || undefined,
-    departmentId: formData.get("departmentId") || undefined,
-    academicLevelId: formData.get("academicLevelId") || undefined,
-    studentCategoryId: formData.get("studentCategoryId") || undefined,
-    isMandatory: formData.get("isMandatory"),
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
-  }
-
-  let amountPesewas: number;
-  try {
-    amountPesewas = parseGhsToPesewas(parsed.data.amount);
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Invalid amount." };
-  }
-
-  try {
-    await createDuesConfiguration(session, session.organizationId, {
-      name: parsed.data.name,
-      code: parsed.data.code,
-      paymentPeriodId: parsed.data.paymentPeriodId,
-      amountPesewas,
-      facultyId: parsed.data.facultyId,
-      departmentId: parsed.data.departmentId,
-      academicLevelId: parsed.data.academicLevelId,
-      studentCategoryId: parsed.data.studentCategoryId,
-      isMandatory: parsed.data.isMandatory,
-    });
-  } catch (error) {
-    if (error instanceof DuesConfigurationError) {
-      return { error: error.message };
-    }
-    throw error;
-  }
-
-  revalidatePath("/admin/dues-configurations");
-  return { success: true };
-}
-
-export async function deactivateDuesConfigurationAction(duesConfigurationId: string) {
+  input: DuesConfigurationFormInput,
+  publish: boolean,
+): Promise<void> {
   const session = await verifySession();
   if (!session.organizationId) throw new Error("No organization in scope.");
-  await deactivateDuesConfiguration(session, session.organizationId, duesConfigurationId);
+
+  const data = parseInput(input);
+  await createDuesConfiguration(session, session.organizationId, data, { publish });
   revalidatePath("/admin/dues-configurations");
 }
 
-export async function reactivateDuesConfigurationAction(duesConfigurationId: string) {
+export async function updateDuesConfigurationAction(
+  duesConfigurationId: string,
+  input: DuesConfigurationFormInput,
+): Promise<void> {
   const session = await verifySession();
   if (!session.organizationId) throw new Error("No organization in scope.");
-  await reactivateDuesConfiguration(session, session.organizationId, duesConfigurationId);
+
+  const data = parseInput(input);
+  await updateDuesConfiguration(session, session.organizationId, duesConfigurationId, data);
+  revalidatePath("/admin/dues-configurations");
+}
+
+export async function transitionDuesConfigurationStatusAction(
+  duesConfigurationId: string,
+  nextStatus: DuesConfigurationStatus,
+): Promise<void> {
+  const session = await verifySession();
+  if (!session.organizationId) throw new Error("No organization in scope.");
+  await transitionDuesConfigurationStatus(
+    session,
+    session.organizationId,
+    duesConfigurationId,
+    nextStatus,
+  );
   revalidatePath("/admin/dues-configurations");
 }

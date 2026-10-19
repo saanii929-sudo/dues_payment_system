@@ -8,6 +8,7 @@ import { updatePlatformSettings } from "@/services/platform.service";
 const GeneralSettingsSchema = z.object({
   platformName: z.string().min(2, { message: "Platform name must be at least 2 characters." }),
   supportEmail: z.string().email({ message: "Enter a valid email address." }),
+  allowWithdrawalSelfApproval: z.coerce.boolean(),
 });
 
 export interface GeneralSettingsFormState {
@@ -23,6 +24,7 @@ export async function updateGeneralSettingsAction(
   const parsed = GeneralSettingsSchema.safeParse({
     platformName: formData.get("platformName"),
     supportEmail: formData.get("supportEmail"),
+    allowWithdrawalSelfApproval: formData.get("allowWithdrawalSelfApproval"),
   });
 
   if (!parsed.success) {

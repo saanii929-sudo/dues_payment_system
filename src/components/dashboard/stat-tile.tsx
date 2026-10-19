@@ -16,7 +16,6 @@ interface StatTileProps {
   hint?: string;
 }
 
-/** A magnitude number's job is a headline, not a chart — see ARCHITECTURE.md Phase 4. */
 export function StatTile({ label, value, accent = "neutral", hint }: StatTileProps) {
   return (
     <div className="rounded-lg border border-border bg-surface p-4">

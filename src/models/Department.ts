@@ -16,7 +16,6 @@ export interface IDepartment
   facultyId: Types.ObjectId;
   name: string;
   code: string;
-  /** Convenience pointer only — actual authority comes from UserRole. */
   hodUserId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

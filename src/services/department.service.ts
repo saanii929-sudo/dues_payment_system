@@ -1,11 +1,10 @@
 import "@/lib/serverOnly";
 import { connectToDatabase } from "@/lib/db/connection";
-import { Department, Faculty, Student, UserRole } from "@/models";
+import { Department, Faculty, Student } from "@/models";
 import { assertCan } from "@/lib/permissions/can";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { setEntityActive } from "@/lib/db/scoped-activation";
 import { escapeRegExp } from "@/lib/db/escape-regex";
-import { DEPARTMENT_ROLES, ROLES } from "@/lib/permissions/roles";
 import type { SessionUser } from "@/lib/permissions/roles";
 
 export class DepartmentError extends Error {}
@@ -26,7 +25,6 @@ export interface CreateDepartmentInput {
   facultyId: string;
 }
 
-/** Case-insensitive within the given faculty, excludes `excludeDepartmentId` when checking during an edit. */
 async function assertUniqueDepartmentName(
   organizationId: string,
   facultyId: string,
@@ -44,7 +42,6 @@ async function assertUniqueDepartmentName(
   }
 }
 
-/** A department may only belong to an active faculty — see ARCHITECTURE.md Phase 6. */
 async function assertActiveFacultyInOrganization(organizationId: string, facultyId: string) {
   const faculty = await Faculty.findOne({ _id: facultyId, organizationId });
   if (!faculty) {
@@ -177,17 +174,26 @@ export async function listDepartments(
     }));
 }
 
-export interface DepartmentExecutive {
-  userRoleId: string;
-  role: string;
-  fullName: string;
-  email: string;
+export interface PublicDepartmentOption {
+  departmentId: string;
+  name: string;
+  facultyId: string;
+}
+
+export async function listPublicDepartments(
+  organizationId: string,
+): Promise<PublicDepartmentOption[]> {
+  await connectToDatabase();
+  const departments = await Department.find({ organizationId, isActive: true }).sort({ name: 1 });
+  return departments.map((department) => ({
+    departmentId: department._id.toString(),
+    name: department.name,
+    facultyId: department.facultyId.toString(),
+  }));
 }
 
 export interface DepartmentDetails extends DepartmentSummary {
   studentCount: number;
-  hod: DepartmentExecutive | null;
-  executives: DepartmentExecutive[];
 }
 
 export async function getDepartmentDetails(
@@ -198,31 +204,16 @@ export async function getDepartmentDetails(
   assertCan(actor, "department:manage", { organizationId });
   await connectToDatabase();
 
-  const [department, studentCount, executiveRoles] = await Promise.all([
+  const [department, studentCount] = await Promise.all([
     Department.findOne({ _id: departmentId, organizationId }).populate<{
       facultyId: { _id: { toString(): string }; name: string };
     }>("facultyId"),
     Student.countDocuments({ organizationId, departmentId }),
-    UserRole.find({
-      organizationId,
-      departmentId,
-      isActive: true,
-      roleKey: { $in: DEPARTMENT_ROLES },
-    }).populate<{ userId: { email: string; fullName: string } }>("userId"),
   ]);
 
   if (!department || !department.facultyId) {
     throw new DepartmentError("Department not found.");
   }
-
-  const executives = executiveRoles
-    .filter((role) => Boolean(role.userId))
-    .map((role) => ({
-      userRoleId: role._id.toString(),
-      role: role.roleKey,
-      fullName: role.userId.fullName,
-      email: role.userId.email,
-    }));
 
   return {
     departmentId: department._id.toString(),
@@ -233,8 +224,6 @@ export async function getDepartmentDetails(
     isActive: department.isActive,
     createdAt: department.createdAt,
     studentCount,
-    hod: executives.find((executive) => executive.role === ROLES.DEPT_HOD) ?? null,
-    executives,
   };
 }
 

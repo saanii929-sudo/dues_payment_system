@@ -29,7 +29,7 @@ const walletTransactionSchema = new Schema<IWalletTransaction>(
     },
     walletType: { type: String, required: true, enum: ["FACULTY", "DEPARTMENT"] },
     walletId: { type: Schema.Types.ObjectId, required: true },
-    direction: { type: String, required: true, enum: ["CREDIT", "DEBIT"] },
+    direction: { type: String, required: true, enum: ["CREDIT", "DEBIT", "HOLD"] },
     amountPesewas: { type: Number, required: true, min: 0 },
     balanceAfterPesewas: { type: Number, required: true },
     sourceType: {
@@ -37,9 +37,11 @@ const walletTransactionSchema = new Schema<IWalletTransaction>(
       required: true,
       enum: [
         "REVENUE_ALLOCATION",
-        "WITHDRAWAL_SETTLEMENT",
+        "WITHDRAWAL_HOLD",
+        "WITHDRAWAL_RELEASE",
         "REFUND_REVERSAL",
         "ADJUSTMENT",
+        "CORRECTION",
       ],
     },
     sourceId: { type: Schema.Types.ObjectId, required: true },

@@ -18,6 +18,11 @@ const STATIC_ROUTES: Record<string, RouteTitle> = {
     title: "Student Categories",
     breadcrumb: ["Administration", "Student Categories"],
   },
+  "/admin/students": { title: "Student Lists", breadcrumb: ["Administration", "Student Lists"] },
+  "/admin/payment-matching": {
+    title: "Payment Matching",
+    breadcrumb: ["Financial", "Payment Matching"],
+  },
   "/admin/payment-periods": {
     title: "Payment Periods",
     breadcrumb: ["Administration", "Payment Periods"],
@@ -25,6 +30,31 @@ const STATIC_ROUTES: Record<string, RouteTitle> = {
   "/admin/dues-configurations": {
     title: "Dues Configuration",
     breadcrumb: ["Financial", "Dues Configuration"],
+  },
+  "/admin/payments": { title: "Payment Records", breadcrumb: ["Financial", "Payment Records"] },
+  "/admin/payments/duplicates": {
+    title: "Duplicate Payment Review",
+    breadcrumb: ["Financial", "Duplicate Payment Review"],
+  },
+  "/admin/payments/monitoring": {
+    title: "Payment Monitoring",
+    breadcrumb: ["Financial", "Payment Monitoring"],
+  },
+  "/admin/payments/reports": {
+    title: "Collection Reports",
+    breadcrumb: ["Reports", "Collection Reports"],
+  },
+  "/admin/revenue-rules": {
+    title: "Revenue Rules",
+    breadcrumb: ["Revenue Distribution", "Revenue Rules"],
+  },
+  "/admin/revenue-deductions": {
+    title: "Revenue Deductions",
+    breadcrumb: ["Revenue Distribution", "Revenue Deductions"],
+  },
+  "/admin/ledger": {
+    title: "Financial Ledger",
+    breadcrumb: ["Revenue Distribution", "Financial Ledger"],
   },
   "/settings": { title: "Account settings", breadcrumb: ["Settings"] },
   "/super-admin/organizations": {
@@ -36,6 +66,11 @@ const STATIC_ROUTES: Record<string, RouteTitle> = {
     breadcrumb: ["Administration", "Platform Users"],
   },
   "/super-admin/audit-logs": { title: "Audit Logs", breadcrumb: ["Reports", "Audit Logs"] },
+  "/super-admin/withdrawals": {
+    title: "Withdrawals",
+    breadcrumb: ["Financial", "Withdrawals"],
+  },
+  "/approvals": { title: "Approval Queue", breadcrumb: ["Financial", "Approval Queue"] },
   "/super-admin/settings": { title: "Platform Settings", breadcrumb: ["Settings", "Platform"] },
   "/super-admin/settings/payments": {
     title: "Payment Configuration",
@@ -47,16 +82,15 @@ const STATIC_ROUTES: Record<string, RouteTitle> = {
   },
 };
 
-/** Falls back to a generic title for dynamic segments (faculty/department/organization ids). */
 export function getRouteTitle(pathname: string): RouteTitle {
   const exact = STATIC_ROUTES[pathname];
   if (exact) return exact;
 
   if (pathname.startsWith("/faculty/")) {
-    return { title: "Faculty dashboard", breadcrumb: ["Faculty"] };
+    return { title: "Financial Dashboard", breadcrumb: ["Faculty", "Financial Dashboard"] };
   }
   if (pathname.startsWith("/department/")) {
-    return { title: "Department dashboard", breadcrumb: ["Department"] };
+    return { title: "Financial Dashboard", breadcrumb: ["Department", "Financial Dashboard"] };
   }
   if (pathname.startsWith("/super-admin/organizations/")) {
     if (pathname.endsWith("/admins")) {
@@ -69,6 +103,18 @@ export function getRouteTitle(pathname: string): RouteTitle {
   }
   if (pathname.startsWith("/admin/departments/")) {
     return { title: "Department Details", breadcrumb: ["Departments", "Details"] };
+  }
+  if (pathname.startsWith("/admin/payment-periods/")) {
+    return { title: "Payment Period Details", breadcrumb: ["Payment Periods", "Details"] };
+  }
+  if (pathname.startsWith("/admin/payments/")) {
+    return { title: "Payment Details", breadcrumb: ["Payment Records", "Details"] };
+  }
+  if (pathname.startsWith("/admin/students/")) {
+    return { title: "Student List Upload", breadcrumb: ["Student Lists", "Details"] };
+  }
+  if (pathname.startsWith("/admin/payment-matching/")) {
+    return { title: "Matching Results", breadcrumb: ["Payment Matching", "Results"] };
   }
 
   return { title: "Dashboard", breadcrumb: ["Dashboard"] };

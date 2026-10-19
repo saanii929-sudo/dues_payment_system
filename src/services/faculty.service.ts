@@ -1,11 +1,10 @@
 import "@/lib/serverOnly";
 import { connectToDatabase } from "@/lib/db/connection";
-import { Faculty, Department, Student, UserRole } from "@/models";
+import { Faculty, Department, Student } from "@/models";
 import { assertCan } from "@/lib/permissions/can";
 import { recordAudit } from "@/lib/audit/recordAudit";
 import { setEntityActive } from "@/lib/db/scoped-activation";
 import { escapeRegExp } from "@/lib/db/escape-regex";
-import { FACULTY_ROLES } from "@/lib/permissions/roles";
 import type { SessionUser } from "@/lib/permissions/roles";
 
 export class FacultyError extends Error {}
@@ -23,7 +22,6 @@ export interface CreateFacultyInput {
   code: string;
 }
 
-/** Case-insensitive, excludes `excludeFacultyId` when checking during an edit. */
 async function assertUniqueFacultyName(
   organizationId: string,
   name: string,
@@ -135,17 +133,24 @@ export async function listFaculties(
   }));
 }
 
-export interface FacultyExecutive {
-  userRoleId: string;
-  role: string;
-  fullName: string;
-  email: string;
+export interface PublicFacultyOption {
+  facultyId: string;
+  name: string;
+}
+
+
+export async function listPublicFaculties(organizationId: string): Promise<PublicFacultyOption[]> {
+  await connectToDatabase();
+  const faculties = await Faculty.find({ organizationId, isActive: true }).sort({ name: 1 });
+  return faculties.map((faculty) => ({
+    facultyId: faculty._id.toString(),
+    name: faculty.name,
+  }));
 }
 
 export interface FacultyDetails extends FacultySummary {
   departmentCount: number;
   studentCount: number;
-  executives: FacultyExecutive[];
 }
 
 export async function getFacultyDetails(
@@ -156,16 +161,10 @@ export async function getFacultyDetails(
   assertCan(actor, "faculty:manage", { organizationId });
   await connectToDatabase();
 
-  const [faculty, departmentCount, studentCount, executiveRoles] = await Promise.all([
+  const [faculty, departmentCount, studentCount] = await Promise.all([
     Faculty.findOne({ _id: facultyId, organizationId }),
     Department.countDocuments({ organizationId, facultyId }),
     Student.countDocuments({ organizationId, facultyId }),
-    UserRole.find({
-      organizationId,
-      facultyId,
-      isActive: true,
-      roleKey: { $in: FACULTY_ROLES },
-    }).populate<{ userId: { email: string; fullName: string } }>("userId"),
   ]);
 
   if (!faculty) {
@@ -180,14 +179,6 @@ export async function getFacultyDetails(
     createdAt: faculty.createdAt,
     departmentCount,
     studentCount,
-    executives: executiveRoles
-      .filter((role) => Boolean(role.userId))
-      .map((role) => ({
-        userRoleId: role._id.toString(),
-        role: role.roleKey,
-        fullName: role.userId.fullName,
-        email: role.userId.email,
-      })),
   };
 }
 

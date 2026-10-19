@@ -1,10 +1,16 @@
 import { Schema, model, models, type Document, type Types } from "mongoose";
-import type { PaymentStatus, PesewasAmount, StudentSnapshot } from "./shared/types";
+import type {
+  DuesConfigurationSnapshot,
+  PaymentStatus,
+  PesewasAmount,
+  StudentSnapshot,
+} from "./shared/types";
 
 export interface IPayment extends Document {
   organizationId: Types.ObjectId;
   paymentPeriodId: Types.ObjectId;
   duesConfigurationId: Types.ObjectId;
+  duesConfigurationSnapshot: DuesConfigurationSnapshot;
   studentIndexNumber: string;
   studentSnapshot: StudentSnapshot;
   amountPesewas: PesewasAmount;
@@ -31,6 +37,18 @@ const studentSnapshotSchema = new Schema(
     academicLevelName: { type: String },
     studentCategoryId: { type: Schema.Types.ObjectId, ref: "StudentCategory" },
     studentCategoryName: { type: String },
+    phone: { type: String },
+    email: { type: String },
+  },
+  { _id: false },
+);
+
+const duesConfigurationSnapshotSchema = new Schema(
+  {
+    name: { type: String, required: true },
+    code: { type: String, required: true },
+    amountPesewas: { type: Number, required: true },
+    effectiveDate: { type: Date, required: true },
   },
   { _id: false },
 );
@@ -52,6 +70,7 @@ const paymentSchema = new Schema<IPayment>(
       ref: "DuesConfiguration",
       required: true,
     },
+    duesConfigurationSnapshot: { type: duesConfigurationSnapshotSchema, required: true },
     studentIndexNumber: { type: String, required: true, trim: true },
     studentSnapshot: { type: studentSnapshotSchema, required: true },
     amountPesewas: { type: Number, required: true, min: 0 },
@@ -62,7 +81,7 @@ const paymentSchema = new Schema<IPayment>(
     status: {
       type: String,
       required: true,
-      enum: ["PENDING", "SUCCESSFUL", "FAILED", "REFUNDED"],
+      enum: ["PENDING", "SUCCESSFUL", "FAILED", "CANCELLED", "REFUNDED"],
       default: "PENDING",
     },
     paidAt: { type: Date },

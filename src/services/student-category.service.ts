@@ -24,7 +24,6 @@ export interface CreateStudentCategoryInput {
   sortOrder: number;
 }
 
-/** Case-insensitive, excludes `excludeStudentCategoryId` when checking during an edit. */
 async function assertUniqueStudentCategoryName(
   organizationId: string,
   name: string,
@@ -139,6 +138,29 @@ export async function listStudentCategories(
     sortOrder: category.sortOrder,
     isActive: category.isActive,
     createdAt: category.createdAt,
+  }));
+}
+
+export interface PublicStudentCategoryOption {
+  studentCategoryId: string;
+  name: string;
+}
+
+/**
+ * No `SessionUser`/`assertCan` — populates the student-category dropdown on
+ * the public `/pay/[orgSlug]` payment form. See ARCHITECTURE.md Phase 10.
+ */
+export async function listPublicStudentCategories(
+  organizationId: string,
+): Promise<PublicStudentCategoryOption[]> {
+  await connectToDatabase();
+  const categories = await StudentCategory.find({ organizationId, isActive: true }).sort({
+    sortOrder: 1,
+    name: 1,
+  });
+  return categories.map((category) => ({
+    studentCategoryId: category._id.toString(),
+    name: category.name,
   }));
 }
 

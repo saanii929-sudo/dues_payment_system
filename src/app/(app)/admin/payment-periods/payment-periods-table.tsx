@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Table,
   TableHeader,
@@ -8,14 +9,8 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  deactivatePaymentPeriodAction,
-  reactivatePaymentPeriodAction,
-  setCurrentPaymentPeriodAction,
-} from "./actions";
+import { PaymentPeriodStatusBadge } from "./status-badge";
 import type { PaymentPeriodSummary } from "@/services/payment-period.service";
 
 function formatDate(date: Date): string {
@@ -32,8 +27,9 @@ export function PaymentPeriodsTable({ periods }: { periods: PaymentPeriodSummary
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
-          <TableHead>Code</TableHead>
+          <TableHead>Academic year</TableHead>
           <TableHead>Dates</TableHead>
+          <TableHead>Payment window</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
@@ -42,52 +38,20 @@ export function PaymentPeriodsTable({ periods }: { periods: PaymentPeriodSummary
         {periods.map((period) => (
           <TableRow key={period.paymentPeriodId}>
             <TableCell className="font-medium text-ink">{period.name}</TableCell>
-            <TableCell className="text-ink-muted">{period.code}</TableCell>
+            <TableCell className="text-ink-muted">{period.academicYear}</TableCell>
             <TableCell className="text-ink-muted">
               {formatDate(period.startDate)} – {formatDate(period.endDate)}
             </TableCell>
-            <TableCell className="space-x-1.5">
-              <Badge variant={period.isActive ? "success" : "danger"}>
-                {period.isActive ? "Active" : "Deactivated"}
-              </Badge>
-              {period.isCurrent && <Badge variant="info">Current</Badge>}
+            <TableCell className="text-ink-muted">
+              {formatDate(period.paymentOpenDate)} – {formatDate(period.paymentCloseDate)}
             </TableCell>
-            <TableCell className="text-right space-x-1.5">
-              {!period.isCurrent && period.isActive && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setCurrentPaymentPeriodAction(period.paymentPeriodId)}
-                >
-                  Set as current
-                </Button>
-              )}
-              {period.isActive ? (
-                <ConfirmDialog
-                  trigger={
-                    <Button variant="danger" size="sm">
-                      Deactivate
-                    </Button>
-                  }
-                  title="Deactivate this payment period?"
-                  description={`${period.name} will be hidden from new dues configurations.`}
-                  confirmLabel="Deactivate"
-                  confirmVariant="danger"
-                  onConfirm={() => deactivatePaymentPeriodAction(period.paymentPeriodId)}
-                />
-              ) : (
-                <ConfirmDialog
-                  trigger={
-                    <Button variant="secondary" size="sm">
-                      Reactivate
-                    </Button>
-                  }
-                  title="Reactivate this payment period?"
-                  description={`${period.name} will be available again.`}
-                  confirmLabel="Reactivate"
-                  onConfirm={() => reactivatePaymentPeriodAction(period.paymentPeriodId)}
-                />
-              )}
+            <TableCell>
+              <PaymentPeriodStatusBadge status={period.status} />
+            </TableCell>
+            <TableCell className="text-right">
+              <Button asChild variant="secondary" size="sm">
+                <Link href={`/admin/payment-periods/${period.paymentPeriodId}`}>View</Link>
+              </Button>
             </TableCell>
           </TableRow>
         ))}

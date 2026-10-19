@@ -8,13 +8,6 @@ export interface IPlatformRevenueSplit {
   percentageBps: BasisPoints;
 }
 
-/**
- * Singleton document (fixed _id "platform") backing the Global Payment
- * Configuration, Global Revenue Rules, and Platform Settings screens.
- * `defaultRevenueSplits` isn't decorative — creating an organization seeds
- * that org's first RevenueAllocationRule from it. See ARCHITECTURE.md
- * Phase 4.
- */
 export interface IPlatformSettings extends Document<string> {
   platformName: string;
   supportEmail: string;
@@ -22,6 +15,8 @@ export interface IPlatformSettings extends Document<string> {
   defaultCurrency: string;
   cardPaymentsEnabled: boolean;
   mobileMoneyEnabled: boolean;
+  /** Segregation-of-duties policy for withdrawal approvals — see ARCHITECTURE.md Phase 21. Off by default. */
+  allowWithdrawalSelfApproval: boolean;
   defaultRevenueSplits: IPlatformRevenueSplit[];
   updatedById?: Types.ObjectId;
   createdAt: Date;
@@ -54,6 +49,7 @@ const platformSettingsSchema = new Schema<IPlatformSettings>(
     defaultCurrency: { type: String, required: true, default: "GHS" },
     cardPaymentsEnabled: { type: Boolean, default: true },
     mobileMoneyEnabled: { type: Boolean, default: true },
+    allowWithdrawalSelfApproval: { type: Boolean, default: false },
     defaultRevenueSplits: {
       type: [platformRevenueSplitSchema],
       required: true,

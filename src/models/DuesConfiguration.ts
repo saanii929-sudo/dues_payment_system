@@ -3,26 +3,23 @@ import {
   auditFieldsSchemaDefinition,
   type AuditFields,
 } from "./shared/auditFields";
-import {
-  deactivationFieldsSchemaDefinition,
-  type DeactivationFields,
-} from "./shared/deactivationFields";
 import type { PesewasAmount } from "./shared/types";
 
-export interface IDuesConfiguration
-  extends Document,
-    AuditFields,
-    DeactivationFields {
+export type DuesConfigurationStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
+
+export interface IDuesConfiguration extends Document, AuditFields {
   organizationId: Types.ObjectId;
   paymentPeriodId: Types.ObjectId;
   name: string;
   code: string;
   amountPesewas: PesewasAmount;
+  effectiveDate: Date;
   facultyId?: Types.ObjectId;
   departmentId?: Types.ObjectId;
   academicLevelId?: Types.ObjectId;
   studentCategoryId?: Types.ObjectId;
   isMandatory: boolean;
+  status: DuesConfigurationStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,12 +39,18 @@ const duesConfigurationSchema = new Schema<IDuesConfiguration>(
     name: { type: String, required: true, trim: true },
     code: { type: String, required: true, uppercase: true, trim: true },
     amountPesewas: { type: Number, required: true, min: 0 },
+    effectiveDate: { type: Date, required: true },
     facultyId: { type: Schema.Types.ObjectId, ref: "Faculty" },
     departmentId: { type: Schema.Types.ObjectId, ref: "Department" },
     academicLevelId: { type: Schema.Types.ObjectId, ref: "AcademicLevel" },
     studentCategoryId: { type: Schema.Types.ObjectId, ref: "StudentCategory" },
     isMandatory: { type: Boolean, default: true },
-    ...deactivationFieldsSchemaDefinition,
+    status: {
+      type: String,
+      required: true,
+      enum: ["DRAFT", "ACTIVE", "ARCHIVED"],
+      default: "DRAFT",
+    },
     ...auditFieldsSchemaDefinition,
   },
   { timestamps: true },
@@ -57,7 +60,7 @@ duesConfigurationSchema.index(
   { organizationId: 1, paymentPeriodId: 1, code: 1 },
   { unique: true },
 );
-duesConfigurationSchema.index({ organizationId: 1, isActive: 1 });
+duesConfigurationSchema.index({ organizationId: 1, status: 1 });
 
 export const DuesConfiguration =
   models.DuesConfiguration ??

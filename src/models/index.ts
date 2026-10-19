@@ -1,4 +1,3 @@
-// Identity & RBAC
 export { User, type IUser } from "./User";
 export { Role, type IRole, type RoleLevel } from "./Role";
 export { UserRole, type IUserRole } from "./UserRole";
@@ -7,7 +6,6 @@ export {
   type IPasswordResetToken,
 } from "./PasswordResetToken";
 
-// Organizational structure
 export { Organization, type IOrganization } from "./Organization";
 export {
   PlatformSettings,
@@ -20,50 +18,76 @@ export { Faculty, type IFaculty } from "./Faculty";
 export { Department, type IDepartment } from "./Department";
 export { AcademicLevel, type IAcademicLevel } from "./AcademicLevel";
 export { StudentCategory, type IStudentCategory } from "./StudentCategory";
-export { PaymentPeriod, type IPaymentPeriod } from "./PaymentPeriod";
+export {
+  PaymentPeriod,
+  type IPaymentPeriod,
+  type PaymentPeriodStatus,
+} from "./PaymentPeriod";
 
-// Dues & students
-export { DuesConfiguration, type IDuesConfiguration } from "./DuesConfiguration";
+export {
+  DuesConfiguration,
+  type IDuesConfiguration,
+  type DuesConfigurationStatus,
+} from "./DuesConfiguration";
 export { Student, type IStudent } from "./Student";
 
-// Payments
 export { Payment, type IPayment } from "./Payment";
 export {
   PaymentStatusHistory,
   type IPaymentStatusHistory,
 } from "./PaymentStatusHistory";
+export { UssdSession, type IUssdSession } from "./UssdSession";
 
-// Revenue distribution & wallets
 export {
   RevenueAllocationRule,
   type IRevenueAllocationRule,
-  type IRevenueSplit,
+  type FacultyShareType,
 } from "./RevenueAllocationRule";
-export { RevenueAllocation, type IRevenueAllocation } from "./RevenueAllocation";
+export {
+  RevenueDeduction,
+  type IRevenueDeduction,
+  type DeductionType,
+  type RevenueDeductionStatus,
+} from "./RevenueDeduction";
+export {
+  RevenueAllocation,
+  type IRevenueAllocation,
+  type RevenueAllocationStatus,
+} from "./RevenueAllocation";
 export { FacultyWallet, type IFacultyWallet } from "./FacultyWallet";
 export { DepartmentWallet, type IDepartmentWallet } from "./DepartmentWallet";
 export { WalletTransaction, type IWalletTransaction } from "./WalletTransaction";
 
-// Withdrawals & refunds
-export { WithdrawalRequest, type IWithdrawalRequest } from "./WithdrawalRequest";
-export { WithdrawalApproval, type IWithdrawalApproval } from "./WithdrawalApproval";
+export {
+  WithdrawalRequest,
+  type IWithdrawalRequest,
+  type WithdrawalRequestStatus,
+  type WithdrawalDestinationMethod,
+} from "./WithdrawalRequest";
+export {
+  WithdrawalApproval,
+  type IWithdrawalApproval,
+  type WithdrawalApprovalStage,
+  type WithdrawalDecision,
+} from "./WithdrawalApproval";
 export {
   WithdrawalSettlement,
   type IWithdrawalSettlement,
 } from "./WithdrawalSettlement";
 export { Refund, type IRefund } from "./Refund";
 
-// Student list reconciliation
-export { StudentListUpload, type IStudentListUpload } from "./StudentListUpload";
+export {
+  StudentListUpload,
+  type IStudentListUpload,
+  type StudentListFileFormat,
+} from "./StudentListUpload";
 export { StudentListEntry, type IStudentListEntry } from "./StudentListEntry";
 export {
   StudentPaymentMatch,
   type IStudentPaymentMatch,
 } from "./StudentPaymentMatch";
 
-// Audit & notifications
 export { AuditLog, type IAuditLog } from "./AuditLog";
 export { Notification, type INotification } from "./Notification";
 
-// Shared vocabulary
 export * from "./shared/types";

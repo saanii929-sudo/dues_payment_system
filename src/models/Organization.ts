@@ -8,7 +8,6 @@ import {
   type DeactivationFields,
 } from "./shared/deactivationFields";
 
-/** The tenant. `slug` is public-facing — used in the /pay/[orgSlug] payment URL. */
 export interface IOrganization
   extends Document,
     AuditFields,

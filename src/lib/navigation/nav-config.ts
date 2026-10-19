@@ -2,13 +2,6 @@ import { ROLES } from "@/lib/permissions/roles";
 import { resolveHomePath } from "@/lib/auth/redirectHome";
 import type { SessionUser } from "@/lib/permissions/roles";
 
-/**
- * String keys, not component references — this module is imported from both
- * server components (Sidebar) and client components (NavSearch), and a raw
- * component reference does not survive the server/client boundary. The
- * actual icon components are looked up from this key in nav-content.tsx,
- * the one client file that needs them.
- */
 export type NavIconKey =
   | "dashboard"
   | "users"
@@ -23,7 +16,15 @@ export type NavIconKey =
   | "academic-levels"
   | "student-categories"
   | "payment-periods"
-  | "dues";
+  | "dues"
+  | "duplicate-review"
+  | "monitoring"
+  | "reports"
+  | "ledger"
+  | "withdrawals"
+  | "approvals"
+  | "students"
+  | "matching";
 
 export interface NavItem {
   label: string;
@@ -32,18 +33,11 @@ export interface NavItem {
 }
 
 export interface NavSection {
-  id: "main" | "financial" | "reports" | "administration" | "settings";
+  id: "main" | "financial" | "revenue-distribution" | "reports" | "administration" | "settings";
   label: string;
   items: NavItem[];
 }
 
-/**
- * Financial and Reports sections are defined here as first-class section
- * types but only render once they actually have an item for this role (see
- * ARCHITECTURE.md "The nav is real, not padded with stub links"). Phase 5
- * gives ORG_ADMIN's Financial section its first-ever item (Dues
- * Configuration), left empty since Phase 3.
- */
 export function getNavSections(user: SessionUser): NavSection[] {
   const sections: NavSection[] = [
     {
@@ -52,6 +46,11 @@ export function getNavSections(user: SessionUser): NavSection[] {
       items: [{ label: "Dashboard", href: resolveHomePath(user), icon: "dashboard" }],
     },
     { id: "financial", label: "Financial", items: financialItems(user) },
+    {
+      id: "revenue-distribution",
+      label: "Revenue Distribution",
+      items: revenueDistributionItems(user),
+    },
     { id: "reports", label: "Reports", items: reportsItems(user) },
     { id: "administration", label: "Administration", items: administrationItems(user) },
     { id: "settings", label: "Settings", items: settingsItems(user) },
@@ -76,6 +75,7 @@ function administrationItems(user: SessionUser): NavItem[] {
       href: "/admin/student-categories",
       icon: "student-categories",
     });
+    items.push({ label: "Student Lists", href: "/admin/students", icon: "students" });
     items.push({
       label: "Payment Periods",
       href: "/admin/payment-periods",
@@ -98,12 +98,55 @@ function financialItems(user: SessionUser): NavItem[] {
       href: "/admin/dues-configurations",
       icon: "dues",
     });
+    items.push({ label: "Payment Records", href: "/admin/payments", icon: "payments" });
+    items.push({
+      label: "Duplicate Payment Review",
+      href: "/admin/payments/duplicates",
+      icon: "duplicate-review",
+    });
+    items.push({
+      label: "Payment Monitoring",
+      href: "/admin/payments/monitoring",
+      icon: "monitoring",
+    });
+    items.push({
+      label: "Payment Matching",
+      href: "/admin/payment-matching",
+      icon: "matching",
+    });
+  }
+  if (user.role === ROLES.SUPER_ADMIN) {
+    items.push({ label: "Withdrawals", href: "/super-admin/withdrawals", icon: "withdrawals" });
+  }
+  if (
+    user.role === ROLES.FACULTY_DEAN ||
+    user.role === ROLES.DEPT_HOD ||
+    user.role === ROLES.SUPER_ADMIN
+  ) {
+    items.push({ label: "Approval Queue", href: "/approvals", icon: "approvals" });
+  }
+  return items;
+}
+
+function revenueDistributionItems(user: SessionUser): NavItem[] {
+  const items: NavItem[] = [];
+  if (user.role === ROLES.ORG_ADMIN) {
+    items.push({ label: "Revenue Rules", href: "/admin/revenue-rules", icon: "revenue" });
+    items.push({
+      label: "Revenue Deductions",
+      href: "/admin/revenue-deductions",
+      icon: "revenue",
+    });
+    items.push({ label: "Financial Ledger", href: "/admin/ledger", icon: "ledger" });
   }
   return items;
 }
 
 function reportsItems(user: SessionUser): NavItem[] {
   const items: NavItem[] = [];
+  if (user.role === ROLES.ORG_ADMIN) {
+    items.push({ label: "Collection Reports", href: "/admin/payments/reports", icon: "reports" });
+  }
   if (user.role === ROLES.SUPER_ADMIN) {
     items.push({ label: "Audit Logs", href: "/super-admin/audit-logs", icon: "audit" });
   }
